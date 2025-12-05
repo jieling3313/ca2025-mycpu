@@ -27,12 +27,12 @@ class WriteBack extends Module {
   })
 
   // ============================================================
-  // [CA25: Exercise 8] WriteBack Source Selection
+  // [CA25: Exercise 8] WriteBack Source Selection                -> WB資料來源 ALU/ Memory/ PC+4
   // ============================================================
   // Hint: Select the appropriate write-back data source based on instruction type
-  //
+    // io.alu_result, io.memory_read_data, io.instruction_address + 4.U
   // WriteBack sources:
-  // - ALU result (default): Used by arithmetic/logical/branch/jump instructions
+  // - ALU result (default): Used by arithmetic/logical/branch/jump instructions 
   // - Memory read data: Used by load instructions (LB, LH, LW, LBU, LHU)
   // - Next instruction address (PC+4): Used by JAL/JALR for return address
   //
@@ -43,10 +43,11 @@ class WriteBack extends Module {
   //
   // TODO: Complete MuxLookup to multiplex writeback sources
   // Hint: Specify default value and cases for each source type
-  io.regs_write_data := MuxLookup(io.regs_write_source, ?)(
+      //                                ↓判斷依據            ↓ALU結果(預設)
+  io.regs_write_data := MuxLookup(io.regs_write_source, io.alu_result)(
     Seq(
-      RegWriteSource.Memory                 -> ?,
-      RegWriteSource.NextInstructionAddress -> ?
+      RegWriteSource.Memory                 -> io.memory_read_data,               // Memory
+      RegWriteSource.NextInstructionAddress -> (io.instruction_address + 4.U)       // PC+4
     )
   )
 }

@@ -87,20 +87,25 @@ class Execute extends Module {
   // - BEQ/BNE: Equality/inequality comparison (sign-agnostic)
   // - BLT/BGE: Signed comparison (requires type conversion)
   // - BLTU/BGEU: Unsigned comparison (direct comparison)
-  val branchCondition = MuxLookup(funct3, false.B)(
+    // branch 條件 啥時跳出 比較 io.reg1_data 跟 io.reg2_data
+    // * ALU Operand Selection:
+    // * - Operand 1: Register (rs1) or PC (for branches, JAL, AUIPC)
+    // * - Operand 2: Register (rs2) or immediate (for I-type, S-type, U-type)
+
+  val branchCondition = MuxLookup(funct3, false.B)(   
     Seq(
       // TODO: Implement six branch conditions
       // Hint: Compare two register data values based on branch type
-      InstructionsTypeB.beq  -> ?,
-      InstructionsTypeB.bne  -> ?,
+      InstructionsTypeB.beq  -> (io.reg1_data === io.reg2_data),
+      InstructionsTypeB.bne  -> (io.reg1_data =/= io.reg2_data),
 
       // Signed comparison (need conversion to signed type)
-      InstructionsTypeB.blt  -> ?,
-      InstructionsTypeB.bge  -> ?,
+      InstructionsTypeB.blt  -> (io.reg1_data.asSInt < io.reg2_data.asSInt),
+      InstructionsTypeB.bge  -> (io.reg1_data.asSInt >= io.reg2_data.asSInt),
 
       // Unsigned comparison
-      InstructionsTypeB.bltu -> ?,
-      InstructionsTypeB.bgeu -> ?
+      InstructionsTypeB.bltu -> (io.reg1_data < io.reg2_data),
+      InstructionsTypeB.bgeu -> (io.reg1_data >= io.reg2_data)
     )
   )
   val isBranch = opcode === InstructionTypes.Branch
@@ -108,7 +113,7 @@ class Execute extends Module {
   val isJalr   = opcode === Instructions.jalr
 
   // ============================================================
-  // [CA25: Exercise 5] Jump Target Address Calculation
+  // [CA25: Exercise 5] Jump Target Address Calculation        <- 計算要跳到那
   // ============================================================
   // Hint: Calculate branch and jump target addresses
   //
@@ -118,18 +123,22 @@ class Execute extends Module {
   // - JALR: (rs1 + immediate) & ~1 (register base, clear LSB for alignment)
   //
   // TODO: Complete the following address calculations
-  val branchTarget = ?
-
+  val branchTarget = io.instruction_address + io.immediate
+      // Branch: PC + immediate (PC-relative)
   val jalTarget    = branchTarget  // JAL and Branch use same calculation method
+      // JAL: PC + immediate (PC-relative), 一樣
 
-  // JALR address calculation:
+  // JALR address calculation: <- 依靠輸入地址 + imm
   //   1. Add register value and immediate
   //   2. Clear LSB (2-byte alignment)
-  val jalrSum      = ?
-
+  val jalrSum      = io.reg1_data + io.immediate
+      // JALR: (rs1 + immediate) & ~1 (register base, clear LSB for alignment)
   // TODO: Clear LSB using bit concatenation
   // Hint: Extract upper bits and append zero
-  val jalrTarget   = ?
+  val jalrTarget   = Cat(jalrSum(31, 1), 0.U(1.W)) // Concatenate 
+      // & ~1
+      // 取31~1高位元, bit[0]取0  
+      // val jalrTarget = jalrSum & "hfffffffe".U
 
   val branchTaken = isBranch && branchCondition
   io.if_jump_flag := branchTaken || isJal || isJalr

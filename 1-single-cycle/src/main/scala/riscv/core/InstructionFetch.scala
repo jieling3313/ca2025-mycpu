@@ -39,7 +39,7 @@ class InstructionFetch extends Module {
   val pc = RegInit(ProgramCounter.EntryAddress)
 
   // ============================================================
-  // [CA25: Exercise 9] PC Update Logic - Sequential vs Control Flow
+  // [CA25: Exercise 9] PC Update Logic - Sequential vs Control Flow -> 決定下個PC直
   // ============================================================
   // Hint: Implement program counter (PC) update logic for sequential execution
   // and control flow changes
@@ -56,18 +56,18 @@ class InstructionFetch extends Module {
   //    - Insert NOP to prevent illegal instruction execution
   //
   // Examples:
-  // - Normal ADD: PC = 0x1000 → next PC = 0x1004 (sequential)
-  // - JAL offset: PC = 0x1000, target = 0x2000 → next PC = 0x2000 (control flow)
-  // - BEQ taken: PC = 0x1000, target = 0x0FFC → next PC = 0x0FFC (control flow)
+  // - Normal ADD: PC = 0x1000 → next PC = 0x1004 (sequential)                     -> 正常情況
+  // - JAL offset: PC = 0x1000, target = 0x2000 → next PC = 0x2000 (control flow)  -> jal
+  // - BEQ taken: PC = 0x1000, target = 0x0FFC → next PC = 0x0FFC (control flow)   -> branch
   when(io.instruction_valid) {
     io.instruction := io.instruction_read_data
 
     // TODO: Complete PC update logic
     // Hint: Use multiplexer to select between jump target and sequential PC
-    // - Check jump flag condition
-    // - True case: Use jump target address
-    // - False case: Sequential execution
-    pc := ?
+    // - Check jump flag condition -> 查看 io.jump_flag_id
+    // - True case: Use jump target address 
+    // - False case: Sequential execution 
+    pc := Mux(io.jump_flag_id, io.jump_address_id, pc + 4.U)
 
   }.otherwise {
     // When instruction is invalid, hold PC and insert NOP (ADDI x0, x0, 0)

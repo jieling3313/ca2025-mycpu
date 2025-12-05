@@ -39,13 +39,21 @@ class ALUControl extends Module {
   //   - Special cases: ADD/SUB and SRL/SRA distinguished by funct7[5]
   // - Other types: All use ADD (for address calculation or immediate loading)
 
+    //    31           25 24    20 19    15 14    12 11         7 6      0
+    //   |    funct7     |   rs2  |   rs1  | funct3 |     rd     | opcode | R-type <- funct7
+    //   |      imm[11:0]         |   rs1  | funct3 |     rd     | opcode | I-type
+    //   |   imm[11:5]   |   rs2  |   rs1  | funct3 |  imm[4:0]  | opcode | S-type
+    //   | imm[12|10:5]  |   rs2  |   rs1  | funct3 | imm[4:1|11]| opcode | B-type
+    //   |               imm[31:12]                 |     rd     | opcode | U-type
+    //   |         imm[20|10:1|11|19:12]            |     rd     | opcode | J-type
+
   // Default ALU function for address calculation (Branch, Load, Store, JAL, JALR, LUI, AUIPC)
   io.alu_funct := ALUFunctions.add
 
   switch(io.opcode) {
     is(InstructionTypes.OpImm) {
       // I-type immediate operation instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
-      io.alu_funct := MuxLookup(io.funct3, ALUFunctions.zero)(
+      io.alu_funct := MuxLookup(io.funct3, ALUFunctions.zero)(  // 寫funct3
         Seq(
           // TODO: Map funct3 to corresponding ALU operation
           // Hint: Refer to definitions in InstructionsTypeI object
@@ -55,20 +63,21 @@ class ALUControl extends Module {
           InstructionsTypeI.sltiu -> ALUFunctions.sltu,
 
           // TODO: Complete the following mappings
-          InstructionsTypeI.xori  -> ?,
-          InstructionsTypeI.ori   -> ?,
-          InstructionsTypeI.andi  -> ?,
-
-          // SRLI/SRAI distinguished by funct7[5]:
+          InstructionsTypeI.xori  -> ALUFunctions.xor,
+          InstructionsTypeI.ori   -> ALUFunctions.or,
+          InstructionsTypeI.andi  -> ALUFunctions.and,
+ 
+          // SRLI/SRAI distinguished by funct7[5]:      // funct7[5]
           //   funct7[5] = 0 → SRLI (logical right shift)
           //   funct7[5] = 1 → SRAI (arithmetic right shift)
           // TODO: Complete Mux selection logic
-          InstructionsTypeI.sri   -> ?
+            //  Mux(判斷依據, 1執行, 0執行)
+          InstructionsTypeI.sri   -> Mux(io.funct7(5), ALUFunctions.sra, ALUFunctions.srl)
         )
       )
     }
 
-    is(InstructionTypes.Op) {
+    is(InstructionTypes.Op) {          // 寫 opcode (R-type) 同75 InstructionsTypeI.sri   -> Mux(io.funct7(5), ALUFunctions.sra, ALUFunctions.srl)
       // R-type register operation instructions (ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND)
       io.alu_funct := MuxLookup(io.funct3, ALUFunctions.zero)(
         Seq(
@@ -76,22 +85,22 @@ class ALUControl extends Module {
           //   funct7[5] = 0 → ADD
           //   funct7[5] = 1 → SUB
           // TODO: Complete Mux selection logic
-          InstructionsTypeR.add_sub -> ?,
+          InstructionsTypeR.add_sub -> Mux(io.funct7(5), ALUFunctions.sub, ALUFunctions.add),
 
           InstructionsTypeR.sll     -> ALUFunctions.sll,
           InstructionsTypeR.slt     -> ALUFunctions.slt,
           InstructionsTypeR.sltu    -> ALUFunctions.sltu,
 
           // TODO: Complete the following mappings
-          InstructionsTypeR.xor     -> ?,
-          InstructionsTypeR.or      -> ?,
-          InstructionsTypeR.and     -> ?,
+          InstructionsTypeR.xor     -> ALUFunctions.xor,
+          InstructionsTypeR.or      -> ALUFunctions.or,
+          InstructionsTypeR.and     -> ALUFunctions.and,
 
           // SRL/SRA distinguished by funct7[5]:
           //   funct7[5] = 0 → SRL (logical right shift)
           //   funct7[5] = 1 → SRA (arithmetic right shift)
           // TODO: Complete Mux selection logic
-          InstructionsTypeR.sr      -> ?
+          InstructionsTypeR.sr      -> Mux(io.funct7(5), ALUFunctions.sra, ALUFunctions.srl)
         )
       )
     }

@@ -43,7 +43,7 @@ class InstructionDecoderTest extends AnyFlatSpec with ChiselScalatestTester {
       c.clock.step()
 
       // InstructionTypes.I, I-type instructions
-      c.io.instruction.poke(0x0184f193L.U) // andi x3, x9, 24
+      c.io.instruction.poke(0x0184f193L.U) // andi x3, x9, 24 0184f193
       c.io.ex_aluop1_source.expect(ALUOp1Source.Register)
       c.io.ex_aluop2_source.expect(ALUOp2Source.Immediate)
       c.io.ex_immediate.expect(24.U)

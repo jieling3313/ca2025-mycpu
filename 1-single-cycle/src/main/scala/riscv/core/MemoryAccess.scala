@@ -41,16 +41,16 @@ class MemoryAccess extends Module {
   io.wb_memory_read_data        := 0.U
 
   // ============================================================
-  // [CA25: Exercise 6] Load Data Extension - Sign and Zero Extension
+  // [CA25: Exercise 6] Load Data Extension - Sign and Zero Extension -> 讀資料(load擴展)
   // ============================================================
   // Hint: Implement proper sign extension and zero extension for load operations
   //
   // RISC-V Load instruction types:
-  // - LB (Load Byte): Load 8-bit value and sign-extend to 32 bits
-  // - LBU (Load Byte Unsigned): Load 8-bit value and zero-extend to 32 bits
-  // - LH (Load Halfword): Load 16-bit value and sign-extend to 32 bits
-  // - LHU (Load Halfword Unsigned): Load 16-bit value and zero-extend to 32 bits
-  // - LW (Load Word): Load full 32-bit value, no extension needed
+  // - LB (Load Byte): Load 8-bit value and sign-extend to 32 bits                -> 讀8   擴32
+  // - LBU (Load Byte Unsigned): Load 8-bit value and zero-extend to 32 bits      -> 讀8   擴32
+  // - LH (Load Halfword): Load 16-bit value and sign-extend to 32 bits           -> 讀16  擴32
+  // - LHU (Load Halfword Unsigned): Load 16-bit value and zero-extend to 32 bits -> 讀16  擴32
+  // - LW (Load Word): Load full 32-bit value, no extension needed                -> 讀32  
   //
   // Sign extension: Replicate the sign bit (MSB) to fill upper bits
   //   Example: LB loads 0xFF → sign-extended to 0xFFFFFFFF
@@ -77,28 +77,38 @@ class MemoryAccess extends Module {
     io.wb_memory_read_data := MuxLookup(io.funct3, 0.U)(
       Seq(
         // TODO: Complete LB (sign-extend byte)
-        // Hint: Replicate sign bit, then concatenate with byte
-        InstructionsTypeL.lb  -> ?,
+        // Hint: Replicate sign bit, then concatenate with byte **bit[7] = 1, 前24填1**,**bit[7] = 0, 前24填0**
+          // LB (Load Byte): Load 8-bit value and sign-extend to 32 bits (讀8   擴32) 
+        InstructionsTypeL.lb  -> Cat(Fill(24, byte(7)), byte),
 
         // TODO: Complete LBU (zero-extend byte)
-        // Hint: Fill upper bits with zero, then concatenate with byte
-        InstructionsTypeL.lbu -> ?,
+        // Hint: Fill upper bits with zero, then concatenate with byte **只補0**
+          // LBU (Load Byte Unsigned): Load 8-bit value and zero-extend to 32 bits (讀8   擴32)
+        InstructionsTypeL.lbu -> Cat(Fill(24, 0.U), byte),
+          // Cat(Fill(24, 0.U), byte) Cat(0.U(24.W), byte)
 
         // TODO: Complete LH (sign-extend halfword)
-        // Hint: Replicate sign bit, then concatenate with halfword
-        InstructionsTypeL.lh  -> ?,
+        // Hint: Replicate sign bit, then concatenate with halfword **補半字**
+          // LH (Load Halfword): Load 16-bit value and sign-extend to 32 bits (讀16  擴32)
+        InstructionsTypeL.lh  -> Cat(Fill(16, half(15)), half),
 
         // TODO: Complete LHU (zero-extend halfword)
         // Hint: Fill upper bits with zero, then concatenate with halfword
-        InstructionsTypeL.lhu -> ?,
+          // LHU (Load Halfword Unsigned): Load 16-bit value and zero-extend to 32 bits (讀16  擴32)
+        InstructionsTypeL.lhu -> Cat(Fill(16, 0.U), half),
 
         // LW: Load full word, no extension needed (completed example)
         InstructionsTypeL.lw  -> data
       )
     )
+
+
+
+
   // ============================================================
   // [CA25: Exercise 7] Store Data Alignment - Byte Strobes and Shifting
   // ============================================================
+  
   // Hint: Implement proper data alignment and byte strobes for store operations
   //
   // RISC-V Store instruction types:
@@ -108,7 +118,7 @@ class MemoryAccess extends Module {
   //
   // Key concepts:
   // 1. Byte strobes: Control which bytes in a 32-bit word are written
-  //    - SB: 1 strobe active (at mem_address_index position)
+  //    - SB: 1 strobe active (at mem_address_index position)  
   //    - SH: 2 strobes active (based on address bit 1)
   //    - SW: All 4 strobes active
   // 2. Data shifting: Align data to correct byte position in 32-bit word
@@ -137,24 +147,27 @@ class MemoryAccess extends Module {
         // Hint:
         // 1. Enable single byte strobe at appropriate position
         // 2. Shift byte data to correct position based on address
-        writeStrobes(?) := true.B
-        writeData := data(?) << (mem_address_index << ?)
+          // SB to address 0x1002 (index=2): data[7:0] → byte 2, strobe[2]=1
+          // mem_address_index =  0    1     2     3
+          //             shift  7:0 15:8 23:16 31:24
+        writeStrobes(mem_address_index) := true.B
+        writeData := data(7, 0) << (mem_address_index << 3.U)
       }
       is(InstructionsTypeS.sh) {
         // TODO: Complete store halfword logic
-        // Hint: Check address to determine lower/upper halfword position
-        when(mem_address_index(___) === 0.U) {
+        // Hint: Check address to determine lower/upper halfword position 檢查上or下半字
+        when(mem_address_index(1) === 0.U) {
           // Lower halfword (bytes 0-1)
           // TODO: Enable strobes for lower two bytes, no shifting needed
-          writeStrobes(?) := true.B
-          writeStrobes(?) := true.B
-          writeData := data(?)
+          writeStrobes(0) := true.B
+          writeStrobes(1) := true.B
+          writeData := data(15, 0)
         }.otherwise {
           // Upper halfword (bytes 2-3)
           // TODO: Enable strobes for upper two bytes, apply appropriate shift
-          writeStrobes(?) := true.B
-          writeStrobes(?) := true.B
-          writeData := data(?) << ?
+          writeStrobes(2) := true.B
+          writeStrobes(3) := true.B
+          writeData := data(15, 0) << 16
         }
       }
       is(InstructionsTypeS.sw) {
