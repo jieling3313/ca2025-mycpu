@@ -50,7 +50,7 @@ class InstructionFetch extends Module {
   //    - Insert NOP to prevent illegal instruction execution
   //
   // Priority: Interrupt > Jump/Branch > Sequential
-  //
+  // 
   // Examples:
   // - Normal ADD: PC = 0x1000 → next PC = 0x1004 (sequential)
   // - JAL offset: PC = 0x1000, target = 0x2000 → next PC = 0x2000 (control flow)
@@ -66,7 +66,17 @@ class InstructionFetch extends Module {
     // - Inner multiplexer: Check jump flag
     //   - True: Use jump target address
     //   - False: Sequential execution
-    pc := ?
+      // Check interrupt
+    pc := Mux(
+      io.interrupt_assert,
+      io.interrupt_handler_address,  // Priority 1: Interrupt
+      Mux(
+        io.jump_flag_id,             // Priority 2: Jump/Branch
+        io.jump_address_id,
+        pc + 4.U                     // Priority 3: Sequential
+      )
+
+    )
 
   }.otherwise {
     // When instruction is invalid, hold PC and insert NOP (ADDI x0, x0, 0)

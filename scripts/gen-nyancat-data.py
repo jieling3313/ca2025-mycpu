@@ -31,9 +31,11 @@ Delta encoding format (--delta mode):
 """
 
 import argparse
+import heapq
 import re
 import sys
 import urllib.request
+from collections import Counter
 from pathlib import Path
 from typing import List, Tuple
 
@@ -264,283 +266,216 @@ def compress_delta_frame(prev_pixels: List[str], curr_pixels: List[str]) -> List
     opcodes.append(0xFF)
     return opcodes
 
+# ============================================================================
+# Huffman Coding Implementation
+# ============================================================================
 
-def generate_header(frames: List[List[str]], output_path: Path, use_delta: bool = False) -> None:
-    """Generate nyancat-data.h with compressed frame data."""
+def build_huffman_tree(frequencies: dict) -> List[Tuple[int, str]]:
+    """
+    Build Huffman tree using min-heap.
 
-    # Compress all frames
+    Args:
+        frequencies: dict {opcode: count}
+
+    Returns:
+        list of (opcode, huffman_code_string)
+    """
+    # Initialize heap: [weight, [symbol, code]]
+    heap = [[weight, [symbol, ""]] for symbol, weight in frequencies.items()]
+    heapq.heapify(heap)
+
+    print(f"\n=== Building Huffman Tree ===")
+    print(f"Initial nodes: {len(heap)}")
+
+    # Merge nodes until only root remains
+    while len(heap) > 1:
+        lo = heapq.heappop(heap)
+        hi = heapq.heappop(heap)
+
+        # Add '0' prefix to left subtree
+        for pair in lo[1:]:
+            pair[1] = '0' + pair[1]
+
+        # Add '1' prefix to right subtree
+        for pair in hi[1:]:
+            pair[1] = '1' + pair[1]
+
+        # Merge and push back
+        heapq.heappush(heap, [lo[0] + hi[0]] + lo[1:] + hi[1:])
+
+    # Extract final encoding table
+    huffman_codes = sorted(heapq.heappop(heap)[1:], key=lambda p: (len(p[1]), p[0]))
+
+    print(f"Huffman tree built: {len(huffman_codes)} symbols")
+    return huffman_codes
+
+
+def compress_with_huffman(opcodes: List[int], huffman_tree: List[Tuple[int, str]]) -> Tuple[bytes, int]:
+    """
+    Compress opcodes using Huffman coding.
+
+    Args:
+        opcodes: list of opcodes
+        huffman_tree: list of (opcode, code_string)
+
+    Returns:
+        (compressed_bytes, bitstream_length)
+    """
+    # Build encoding map
+    code_map = {opcode: code for opcode, code in huffman_tree}
+
+    # Convert to bitstream
+    bitstream = ''.join(code_map[op] for op in opcodes)
+
+    # Pack into bytes (8 bits per byte)
+    compressed = bytearray()
+    for i in range(0, len(bitstream), 8):
+        byte_bits = bitstream[i:i+8].ljust(8, '0')  # Pad with 0
+        compressed.append(int(byte_bits, 2))
+
+    return bytes(compressed), len(bitstream)
+
+
+def generate_huffman_header(frames: List[List[str]], output_path: Path) -> None:
+    """
+    Generate header with Delta-RLE + Huffman compression.
+    """
+    # Step 1: Delta-RLE compression
+    print("\n=== Step 1: Delta-RLE Compression ===")
+    all_opcodes = []
     compressed_frames = []
 
-    if use_delta:
-        # Frame 0: baseline RLE
-        baseline_opcodes = compress_frame_opcode_rle(frames[0])
-        compressed_frames.append(baseline_opcodes)
-        print(f"Frame  0 (baseline): {len(frames[0])} pixels → {len(baseline_opcodes)} opcodes ({100 - len(baseline_opcodes) * 100 // len(frames[0])}% reduction)")
+    # Frame 0: baseline
+    baseline = compress_frame_opcode_rle(frames[0])
+    compressed_frames.append(baseline)
+    all_opcodes.extend(baseline)
+    print(f"Frame  0 (baseline): {len(baseline)} opcodes")
 
-        # Frames 1-11: delta encoding
-        for i in range(1, 12):
-            delta_opcodes = compress_delta_frame(frames[i-1], frames[i])
-            compressed_frames.append(delta_opcodes)
-            print(f"Frame {i:2d} (delta):    {len(frames[i])} pixels → {len(delta_opcodes)} opcodes ({100 - len(delta_opcodes) * 100 // len(frames[i])}% reduction)")
-    else:
-        # Baseline: opcode-RLE for all frames
-        for i, frame in enumerate(frames):
-            opcodes = compress_frame_opcode_rle(frame)
-            compressed_frames.append(opcodes)
-            print(f"Frame {i}: {len(frame)} pixels → {len(opcodes)} opcodes ({100 - len(opcodes) * 100 // len(frame)}% reduction)")
+    # Frame 1-11: delta
+    for i in range(1, 12):
+        delta = compress_delta_frame(frames[i-1], frames[i])
+        compressed_frames.append(delta)
+        all_opcodes.extend(delta)
+        print(f"Frame {i:2d} (delta):    {len(delta)} opcodes")
 
-    # Calculate frame offsets
-    offsets = [0]
-    for frame_data in compressed_frames[:-1]:
-        offsets.append(offsets[-1] + len(frame_data))
+    total_delta_rle = len(all_opcodes)
+    print(f"\nDelta-RLE total: {total_delta_rle} opcodes")
 
-    # Flatten all compressed data
-    all_data = []
-    for frame_data in compressed_frames:
-        all_data.extend(frame_data)
+    # Step 2: Build Huffman tree
+    print("\n=== Step 2: Huffman Tree Construction ===")
+    freq = Counter(all_opcodes)
+    huffman_tree = build_huffman_tree(freq)
 
-    total_original = 12 * 4096
-    total_compressed = len(all_data)
-    reduction = 100 - (total_compressed * 100 // total_original)
+    # Print encoding table
+    print("\nHuffman Encoding Table:")
+    print("=" * 60)
+    print(f"{'Opcode':<10} {'Freq':<10} {'Code':<20} {'Bits':<10}")
+    print("-" * 60)
+    for opcode, code in huffman_tree[:10]:  # Show first 10
+        print(f"0x{opcode:02x}      {freq[opcode]:<10d} {code:<20s} {len(code):<10d}")
+    if len(huffman_tree) > 10:
+        print(f"... and {len(huffman_tree) - 10} more")
 
-    print(f"\nTotal: {total_original} pixels → {total_compressed} opcodes ({reduction}% reduction)")
+    # Step 3: Huffman compression
+    print("\n=== Step 3: Huffman Compression ===")
+    huffman_data, bitstream_len = compress_with_huffman(all_opcodes, huffman_tree)
 
-    # Generate header file
-    compression_type = "delta-RLE" if use_delta else "opcode-RLE"
+    total_huffman = len(huffman_data)
+    print(f"Huffman compressed: {total_huffman} bytes ({bitstream_len} bits)")
+
+    # Calculate compression ratios
+    original_size = 12 * 4096
+    delta_rle_ratio = (1 - total_delta_rle / original_size) * 100
+    huffman_ratio = (1 - total_huffman / total_delta_rle) * 100
+    total_ratio = (1 - total_huffman / original_size) * 100
+
+    print(f"\n=== Compression Summary ===")
+    print(f"Original:         {original_size:6d} bytes")
+    print(f"After Delta-RLE:  {total_delta_rle:6d} bytes ({delta_rle_ratio:5.1f}% reduction)")
+    print(f"After Huffman:    {total_huffman:6d} bytes ({huffman_ratio:5.1f}% additional reduction)")
+    print(f"Total reduction:  {total_ratio:5.1f}%")
+
+    # Generate C header file
     with open(output_path, 'w') as f:
-        f.write(f"""// SPDX-License-Identifier: MIT
-// Auto-generated nyancat animation data with {compression_type} compression
-// DO NOT EDIT - Generated by scripts/gen-nyancat-data.py
+        f.write("""
+// SPDX-License-Identifier: MIT
+// Auto-generated nyancat animation data with Delta-RLE + Huffman compression
+// DO NOT EDIT - Generated by scripts/gen-nyancat-data-huffman.py
 
-#ifndef NYANCAT_DATA_H
-#define NYANCAT_DATA_H
+#ifndef NYANCAT_HUFFMAN_H
+#define NYANCAT_HUFFMAN_H
 
 #include <stdint.h>
 
-// Compression type: {"delta" if use_delta else "baseline"}
-#define NYANCAT_COMPRESSION_DELTA {1 if use_delta else 0}
+// Huffman decoding table entry
+typedef struct {
+    uint8_t opcode;      // Original opcode
+    uint8_t code_len;    // Code length in bits
+    uint16_t code;       // Huffman code
+} HuffmanEntry;
 
-// Frame offset table (12 frames)
-static const uint16_t nyancat_frame_offsets[12] = {{
 """)
 
-        # Write frame offsets
-        for i in range(0, len(offsets), 6):
-            chunk = offsets[i:i+6]
-            f.write("    " + ", ".join(f"{offset:5d}" for offset in chunk))
-            if i + 6 < len(offsets):
-                f.write(",")
-            f.write("\n")
+        # Write Huffman table
+        f.write(f"// Huffman decoding table ({len(huffman_tree)} entries)\n")
+        f.write(f"static const HuffmanEntry huffman_table[{len(huffman_tree)}] = {{\n")
+        f.write("    // opcode, len, code\n")
+
+        for opcode, code in huffman_tree:
+            code_int = int(code, 2) if code else 0
+            f.write(f"    {{0x{opcode:02x}, {len(code):2d}, 0x{code_int:04x}}},")
+            f.write(f"  // '{code}' (freq: {freq[opcode]})\n")
 
         f.write("};\n\n")
-        f.write(f"// Compressed animation data ({len(all_data)} bytes)\n")
 
-        if use_delta:
-            f.write(f"// Delta encoding format:\n")
-            f.write(f"//   Frame 0 (baseline): 0x0X=SetColor, 0x2Y=Repeat(1-16), 0x3Y=Repeat*16(16-256)\n")
-            f.write(f"//   Frame 1-11 (delta):  0x0X=SetColor, 0x1Y=Skip(1-16), 0x2Y=Repeat(1-16),\n")
-            f.write(f"//                        0x3Y=Skip*16(16-256), 0x4Y=Repeat*16(16-256),\n")
-            f.write(f"//                        0x5Y=Skip*64(64-1024), 0xFF=EndOfFrame\n")
-        else:
-            f.write(f"// Opcode format:\n")
-            f.write(f"//   0x0X = SetColor (X = color 0-13)\n")
-            f.write(f"//   0x2Y = Repeat (Y+1) times (1-16 pixels)\n")
-            f.write(f"//   0x3Y = Repeat (Y+1)×16 times (16-256 pixels)\n")
-            f.write(f"//   0xFF = EndOfFrame\n")
+        # Write compressed data
+        f.write(f"// Huffman compressed data ({len(huffman_data)} bytes, {bitstream_len} bits)\n")
+        f.write(f"#define HUFFMAN_BITSTREAM_LEN {bitstream_len}\n\n")
 
-        f.write(f"static const uint8_t nyancat_compressed_data[{len(all_data)}] = {{\n")
-
-        # Write compressed data (16 bytes per line)
-        for i in range(0, len(all_data), 16):
-            chunk = all_data[i:i+16]
-            f.write("    " + ", ".join(f"0x{byte:02x}" for byte in chunk))
-            if i + 16 < len(all_data):
+        f.write(f"static const uint8_t huffman_compressed_data[{len(huffman_data)}] = {{\n")
+        for i in range(0, len(huffman_data), 16):
+            chunk = huffman_data[i:i+16]
+            f.write("    " + ", ".join(f"0x{b:02x}" for b in chunk))
+            if i + 16 < len(huffman_data):
                 f.write(",")
             f.write("\n")
-
         f.write("};\n\n")
-        f.write("#endif // NYANCAT_DATA_H\n")
+
+        f.write("#endif // NYANCAT_HUFFMAN_H\n")
 
     print(f"\nGenerated: {output_path}")
     print(f"Header size: {output_path.stat().st_size} bytes")
 
 
-def decompress_and_verify(frames: List[List[str]], use_delta: bool = False) -> bool:
-    """
-    Decompress compressed frames and verify against originals.
-
-    Returns True if all frames match.
-    """
-    print("\n=== Verification Mode ===")
-
-    all_match = True
-
-    if use_delta:
-        # Verify delta compression
-        prev_frame = None
-        for frame_idx, original_frame in enumerate(frames):
-            if frame_idx == 0:
-                # Baseline frame
-                opcodes = compress_frame_opcode_rle(original_frame)
-                decompressed = decompress_baseline(opcodes)
-                prev_frame = original_frame
-            else:
-                # Delta frame
-                opcodes = compress_delta_frame(prev_frame, original_frame)
-                decompressed = decompress_delta(decompress_baseline(compress_frame_opcode_rle(prev_frame)), opcodes)
-                prev_frame = original_frame
-
-            # Verify
-            original_colors = [map_color_to_palette(p) for p in original_frame]
-            if len(decompressed) != 4096:
-                print(f"Frame {frame_idx}: Length mismatch! Expected 4096, got {len(decompressed)}")
-                all_match = False
-            else:
-                mismatches = sum(1 for a, b in zip(original_colors, decompressed) if a != b)
-                if mismatches > 0:
-                    print(f"Frame {frame_idx}: {mismatches} pixel mismatches")
-                    all_match = False
-                else:
-                    print(f"Frame {frame_idx}: ✓ Perfect match ({len(opcodes)} opcodes)")
-    else:
-        # Verify baseline RLE
-        for frame_idx, original_frame in enumerate(frames):
-            opcodes = compress_frame_opcode_rle(original_frame)
-            decompressed = decompress_baseline(opcodes)
-
-            if len(decompressed) != 4096:
-                print(f"Frame {frame_idx}: Length mismatch! Expected 4096, got {len(decompressed)}")
-                all_match = False
-                continue
-
-            original_colors = [map_color_to_palette(p) for p in original_frame]
-            mismatches = sum(1 for a, b in zip(original_colors, decompressed) if a != b)
-
-            if mismatches > 0:
-                print(f"Frame {frame_idx}: {mismatches} pixel mismatches")
-                all_match = False
-            else:
-                print(f"Frame {frame_idx}: ✓ Perfect match ({len(opcodes)} opcodes)")
-
-    return all_match
-
-
-def decompress_baseline(opcodes: List[int]) -> List[int]:
-    """Decompress baseline RLE opcodes to color indices."""
-    decompressed = []
-    current_color = 0
-    i = 0
-
-    while i < len(opcodes):
-        opcode = opcodes[i]
-        i += 1
-
-        if opcode == 0xFF:
-            break
-        elif (opcode & 0xF0) == 0x00:
-            current_color = opcode & 0x0F
-        elif (opcode & 0xF0) == 0x20:
-            count = (opcode & 0x0F) + 1
-            decompressed.extend([current_color] * count)
-        elif (opcode & 0xF0) == 0x30:
-            count = ((opcode & 0x0F) + 1) * 16
-            decompressed.extend([current_color] * count)
-
-    return decompressed
-
-
-def decompress_delta(prev_frame: List[int], opcodes: List[int]) -> List[int]:
-    """Decompress delta frame opcodes using previous frame."""
-    decompressed = list(prev_frame)  # Start with previous frame
-    pos = 0
-    current_color = 0
-    i = 0
-
-    while i < len(opcodes) and pos < 4096:
-        opcode = opcodes[i]
-        i += 1
-
-        if opcode == 0xFF:
-            break
-        elif (opcode & 0xF0) == 0x00:
-            current_color = opcode & 0x0F
-        elif (opcode & 0xF0) == 0x10:
-            pos += (opcode & 0x0F) + 1  # Skip unchanged
-        elif (opcode & 0xF0) == 0x20:
-            count = (opcode & 0x0F) + 1  # Repeat changed
-            for _ in range(count):
-                if pos < 4096:
-                    decompressed[pos] = current_color
-                    pos += 1
-        elif (opcode & 0xF0) == 0x30:
-            pos += ((opcode & 0x0F) + 1) * 16  # Skip unchanged (long)
-        elif (opcode & 0xF0) == 0x40:
-            count = ((opcode & 0x0F) + 1) * 16  # Repeat changed (long)
-            for _ in range(count):
-                if pos < 4096:
-                    decompressed[pos] = current_color
-                    pos += 1
-        elif (opcode & 0xF0) == 0x50:
-            pos += ((opcode & 0x0F) + 1) * 64  # Skip unchanged (very long)
-
-    return decompressed
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate nyancat-data.h with configurable compression"
+        description="Generate nyancat data with Delta-RLE + Huffman compression"
     )
     parser.add_argument(
         '--output', '-o',
         type=Path,
-        default=Path('nyancat-data.h'),
-        help='Output header file path (default: nyancat-data.h)'
+        default=Path('nyancat-huffman.h'),
+        help='Output header file path (default: nyancat-huffman.h)'
     )
     parser.add_argument(
         '--url',
         default='https://raw.githubusercontent.com/klange/nyancat/master/src/animation.c',
-        help='URL to animation.c (default: klange/nyancat master)'
-    )
-    parser.add_argument(
-        '--delta',
-        action='store_true',
-        help='Use delta frame compression (default: baseline RLE)'
-    )
-    parser.add_argument(
-        '--verify',
-        action='store_true',
-        help='Verify compression/decompression without generating output'
+        help='URL to animation.c'
     )
 
     args = parser.parse_args()
 
-    # Download animation data
+    # Download and parse animation data
     print(f"Downloading from: {args.url}")
     content = download_animation_data(args.url)
 
-    # Parse frames
     print("Parsing animation frames...")
     frames = parse_animation_c(content)
     print(f"Parsed {len(frames)} frames, {len(frames[0])} pixels each")
 
-    # Verify mode
-    if args.verify:
-        success = decompress_and_verify(frames, args.delta)
-        sys.exit(0 if success else 1)
-
-    # Generate header
-    compression_mode = "delta-RLE" if args.delta else "opcode-RLE"
-    print(f"\nCompressing frames with {compression_mode}...")
-    generate_header(frames, args.output, args.delta)
-
-    # Run verification
-    print("\nVerifying compression...")
-    if decompress_and_verify(frames, args.delta):
-        print("\n✓ All frames verified successfully")
-    else:
-        print("\n✗ Verification failed")
-        sys.exit(1)
-
+    # Generate Huffman compressed header
+    generate_huffman_header(frames, args.output)
+    print(f"Output file: {args.output}")
 
 if __name__ == '__main__':
     main()

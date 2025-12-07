@@ -266,6 +266,51 @@ static inline void delay(uint32_t cycles)
         __asm__ volatile("nop");
 }
 
+typedef struct {
+    uint32_t buffer;
+    int bits_available;
+    const uint8_t *data;
+    int data_pos;
+} BitStream;
+
+void bitstream_init(BitStream *bs, const uint8_t *data)
+{
+    bs->buffer = 0;
+    bs->bits_available = 0;
+    bs->data = data;
+    bs->data_pos = 0;
+}
+
+uint32_t bitstream_read(BitStream *bs, int num_bits)
+{
+    while (bs->bits_available < num_bits) {
+        bs->buffer = (bs->buffer << 8) | bs->data[bs->data_pos++];
+        bs->bits_available += 8;
+    }
+
+    uint32_t result =
+        (bs->buffer >> (bs->bits_available - num_bits)) & ((1 << num_bits) - 1);
+    bs->bits_available -= num_bits;
+    return result;
+}
+
+uint8_t huffman_decode_opcode(BitStream *bs)
+{
+    // tree traversal decoding
+    int node_idx = 0;  // from root node
+
+    while (1) {
+        // leaf node
+        if (tree_is_leaf[node_idx]) {
+            return tree_opcode[node_idx];
+        }
+
+        // read a bit and iterate
+        uint32_t bit = bitstream_read(bs, 1);
+        node_idx = bit ? tree_right[node_idx] : tree_left[node_idx];
+    }
+}
+
 int main(void)
 {
     // Verify VGA peripheral presence

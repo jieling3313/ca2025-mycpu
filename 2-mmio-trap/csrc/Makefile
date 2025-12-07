@@ -71,3 +71,12 @@ clean:
 	$(RM) *.o *.elf *.asmbin init_minimal.S nyancat-data.h
 
 .PHONY: all update clean
+
+# Huffman version
+nyancat-huffman.asmbin: nyancat-huffman.c nyancat-huffman.h init_minimal.o
+	$(CC) $(CFLAGS) -c -o nyancat-huffman.o nyancat-huffman.c
+	$(CROSS_COMPILE)ld -o nyancat-huffman.elf -T link.lds $(LDFLAGS) \
+		nyancat-huffman.o init_minimal.o
+	$(CROSS_COMPILE)objcopy -O binary -j .text -j .data \
+		nyancat-huffman.elf nyancat-huffman.asmbin
+	@echo "✓ Huffman version compiled: $$(du -h nyancat-huffman.asmbin | cut -f1)"
