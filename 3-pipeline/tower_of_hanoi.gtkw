@@ -1,0 +1,120 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Tower of Hanoi Test Waveform
+[*]
+[dumpfile] "/home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/trace.vcd"
+[dumpfile_mtime] "Mon Dec 09 18:55:00 2024"
+[dumpfile_size] 128000000
+[savefile] "/home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-13.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.Top.
+[treeopen] TOP.Top.cpu.
+[treeopen] TOP.Top.cpu.cpu.
+[sst_width] 300
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 300
+@28
+TOP.Top.cpu.cpu.clock
+@200
+-
+-==== Pipeline Stage PCs ====
+@22
+TOP.Top.cpu.io_instruction_address[31:0]
+@28
+TOP.Top.cpu.io_instruction_valid
+@22
+TOP.Top.cpu.cpu.if2id.io_output_instruction_address[31:0]
+TOP.Top.cpu.cpu.if2id.io_output_instruction[31:0]
+TOP.Top.cpu.cpu.id2ex.io_output_instruction_address[31:0]
+TOP.Top.cpu.cpu.ex2mem.io_output_instruction_address[31:0]
+TOP.Top.cpu.cpu.mem2wb.io_output_instruction_address[31:0]
+@200
+-
+-==== Hazard Detection ====
+@28
+TOP.Top.cpu.cpu.ctrl.io_pc_stall
+TOP.Top.cpu.cpu.ctrl.io_if_flush
+TOP.Top.cpu.cpu.ctrl.io_id_flush
+@200
+-
+-==== Forwarding Signals (ID Stage - Branch Hazards) ====
+@22
+TOP.Top.cpu.cpu.forwarding.io_reg1_forward_id[1:0]
+TOP.Top.cpu.cpu.forwarding.io_reg2_forward_id[1:0]
+@200
+-
+-==== Forwarding Signals (EX Stage - ALU Hazards) ====
+@22
+TOP.Top.cpu.cpu.forwarding.io_reg1_forward_ex[1:0]
+TOP.Top.cpu.cpu.forwarding.io_reg2_forward_ex[1:0]
+@200
+-
+-==== Register File ====
+@22
+TOP.Top.cpu.cpu.regs.io_read_address1[4:0]
+TOP.Top.cpu.cpu.regs.io_read_address2[4:0]
+TOP.Top.cpu.cpu.regs.io_read_data1[31:0]
+TOP.Top.cpu.cpu.regs.io_read_data2[31:0]
+TOP.Top.cpu.cpu.regs.io_write_address[4:0]
+TOP.Top.cpu.cpu.regs.io_write_data[31:0]
+@28
+TOP.Top.cpu.cpu.regs.io_write_enable
+@200
+-
+-==== Tower of Hanoi Key Registers ====
+@22
+TOP.Top.cpu.cpu.regs.registers_7[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x8_s0_loop_counter
+TOP.Top.cpu.cpu.regs.registers_8[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x9_s1_disk_num
+TOP.Top.cpu.cpu.regs.registers_17[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x18_s2
+TOP.Top.cpu.cpu.regs.registers_18[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x19_s3
+TOP.Top.cpu.cpu.regs.registers_19[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x20_s4
+@200
+-
+-==== Stack Pointer & Temporaries ====
+@22
+TOP.Top.cpu.cpu.regs.registers_1[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x2_sp
+TOP.Top.cpu.cpu.regs.registers_4[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x5_t0
+TOP.Top.cpu.cpu.regs.registers_5[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x6_t1
+TOP.Top.cpu.cpu.regs.registers_6[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/tower_of_hanoi.gtkw.x7_t2
+@200
+-
+-==== Memory Signals ====
+@22
+TOP.Top.cpu.cpu.mem.io_bundle_address[31:0]
+TOP.Top.cpu.cpu.mem.io_bundle_read_data[31:0]
+TOP.Top.cpu.cpu.mem.io_bundle_write_data[31:0]
+@28
+TOP.Top.cpu.cpu.mem.io_memory_read_enable
+TOP.Top.cpu.cpu.mem.io_memory_write_enable
+@200
+-
+-==== ALU Signals ====
+@22
+TOP.Top.cpu.cpu.ex.alu.io_op1[31:0]
+TOP.Top.cpu.cpu.ex.alu.io_op2[31:0]
+TOP.Top.cpu.cpu.ex.alu.io_result[31:0]
+TOP.Top.cpu.cpu.ex.alu.io_func[3:0]
+@200
+-
+-==== Branch/Jump Control ====
+@28
+TOP.Top.cpu.cpu.ctrl.io_jump_flag
+TOP.Top.cpu.cpu.ex.io_if_jump_flag
+@22
+TOP.Top.cpu.cpu.ex.io_if_jump_address[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

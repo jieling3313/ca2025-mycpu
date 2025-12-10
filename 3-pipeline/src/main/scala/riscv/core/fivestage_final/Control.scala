@@ -104,11 +104,11 @@ class Control extends Module {
     // 3. AND destination register is not x0
     // 4. AND destination register conflicts with ID source registers
     //
-    ((?) && // Either:
+    ((io.jump_instruction_id || io.memory_read_enable_ex) && // Either:
       // - Jump in ID needs register value, OR
       // - Load in EX (load-use hazard)
-      ? =/= 0.U &&                                 // Destination is not x0
-      (?)) // Destination matches ID source
+      io.rd_ex =/= 0.U &&                                 // Destination is not x0
+      (io.rd_ex === io.rs1_id || io.rd_ex === io.rs2_id)) // Destination matches ID source
     //
     // Examples triggering Condition 1:
     // a) Jump dependency: ADD x1, x2, x3 [EX]; JALR x0, x1, 0 [ID] → stall
@@ -125,10 +125,10 @@ class Control extends Module {
         // 3. Destination register is not x0
         // 4. Destination register conflicts with ID source registers
         //
-        (? &&                              // Jump instruction in ID
-          ? &&                          // Load instruction in MEM
-          ? =/= 0.U &&                                  // Load destination not x0
-          (?)) // Load dest matches jump source
+        (io.jump_instruction_id &&                              // Jump instruction in ID
+          io.memory_read_enable_mem &&                          // Load instruction in MEM
+          io.rd_mem =/= 0.U &&                                  // Load destination not x0
+          (io.rd_mem === io.rs1_id || io.rd_mem === io.rs2_id)) // Load dest matches jump source
         //
         // Example triggering Condition 2:
         // LW x1, 0(x2) [MEM]; NOP [EX]; JALR x0, x1, 0 [ID]
@@ -137,12 +137,9 @@ class Control extends Module {
     // Stall action: Insert bubble and freeze pipeline
     // TODO: Which control signals need to be set to insert a bubble?
     // Hint:
-    // - Flush ID/EX register (insert bubble)
-    // - Freeze PC (don't fetch next instruction)
-    // - Freeze IF/ID (hold current fetch result)
-    io.id_flush := ?
-    io.pc_stall := ?
-    io.if_stall := ?
+    io.id_flush := true.B // - Flush ID/EX register (insert bubble)
+    io.pc_stall := true.B // - Freeze PC (don't fetch next instruction)
+    io.if_stall := true.B // - Freeze IF/ID (hold current fetch result)
 
   }.elsewhen(io.jump_flag) {
     // ============ Control Hazard (Branch Taken) ============
@@ -150,7 +147,7 @@ class Control extends Module {
     // Only flush IF stage (not ID) since branch resolved early
     // TODO: Which stage needs to be flushed when branch is taken?
     // Hint: Branch resolved in ID stage, discard wrong-path instruction
-    io.if_flush := ___
+    io.if_flush := true.B
     // Note: No ID flush needed - branch already resolved in ID!
     // This is the key optimization: 1-cycle branch penalty vs 2-cycle
   }
@@ -162,31 +159,59 @@ class Control extends Module {
   // detection logic implemented above
   //
   // Q1: Why do we need to stall for load-use hazards?
-  // A: [Student answer here]
   // Hint: Consider data dependency and forwarding limitations
+  // A: Load 指令的資料在 MEM 階段才準備好，但依賴該資料的指令在 EX 階段就需要。
+  //    即使有轉發路徑，資料在時間上還沒產生，所以必須 stall 1 週期等待資料就緒。
+  //
+  //    Load instructions produce data in the MEM stage, but dependent instructions 
+  //    need the data in the EX stage. Even with forwarding paths, the data hasn't 
+  //    been generated yet in time, so we must stall for 1 cycle to wait for the 
+  //    data to be ready.
   //
   // Q2: What is the difference between "stall" and "flush" operations?
-  // A: [Student answer here]
   // Hint: Compare their effects on pipeline registers and PC
+  // A: Stall 是凍結 pipeline (pc_stall, if_stall) 並插入 bubble(id_flush)，用於等待資料；
+  //    Flush 是清空 pipeline 暫存器 (if_flush)，用於丟棄錯誤路徑的指令 (branches/jumps)。
+  //
+  //    Stall freezes the pipeline (pc_stall, if_stall) and inserts a bubble (id_flush) 
+  //    to wait for data. Flush clears pipeline registers (if_flush) to discard 
+  //    wrong-path instructions (from branches/jumps).
   //
   // Q3: Why does jump instruction with register dependency need stall?
-  // A: [Student answer here]
   // Hint: When is jump target address available?
+  // A: JALR 指令需要從暫存器讀取跳躍位址。如果該暫存器的值還在 pipeline 中計算，
+  //    必須 stall 直到位址可用(通過轉發或暫存器檔案)。
+  //
+  //    JALR instructions need to read the jump address from a register. If that 
+  //    register's value is still being computed in the pipeline, we must stall 
+  //    until the address is available (via forwarding or register file).
   //
   // Q4: In this design, why is branch penalty only 1 cycle instead of 2?
-  // A: [Student answer here]
   // Hint: Compare ID-stage vs EX-stage branch resolution
+  // A: 分支指令在 ID 階段就完成比較(利用 Exercise 18 ID-stage forwarding)，
+  //    只需清空 IF 階段(1 週期)，而不是傳統的清空 IF+ID (2 週期)。
+  //
+  //    Branch instructions complete comparison in the ID stage (using ID-stage 
+  //    forwarding from Exercise 18), only requiring flushing the IF stage (1 cycle), 
+  //    instead of the traditional flushing of both IF and ID stages (2 cycles).
   //
   // Q5: What would happen if we removed the hazard detection logic entirely?
-  // A: [Student answer here]
   // Hint: Consider data hazards and control flow correctness
+  // A: 會發生 Data hazards(讀到錯誤的暫存器值)和 Control hazards(執行錯誤路徑的指令)，
+  //    而導致程式計算結果錯誤。
+  //
+  //    Data hazards (reading incorrect register values) and control hazards 
+  //    (executing wrong-path instructions) would occur, causing incorrect program 
+  //    computation results.
   //
   // Q6: Complete the stall condition summary:
   // Stall is needed when:
-  // 1. _____ (EX stage condition)
-  // 2. _____ (MEM stage condition)
-  //
+  // 1. EX 階段的 Load-use hazard (或 Jump 指令依賴 EX 階段的資料) (EX stage condition)
+  //    Load-use hazard in EX stage (or jump with EX dependency)
+  // 2. Jump 指令依賴 MEM 階段的 Load 資料 (MEM stage condition)
+  //    Jump instruction with MEM-stage load dependency
   // Flush is needed when:
-  // 1. _____ (Branch/Jump condition)
+  // 1. 分支/跳躍發生時 (io.jump_flag = true) (Branch/Jump condition)
+  //    Branch/Jump taken (io.jump_flag = true)
   //
 }

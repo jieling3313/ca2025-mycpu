@@ -170,5 +170,40 @@ class PipelineProgramTest extends AnyFlatSpec with ChiselScalatestTester {
         c.io.mem_debug_read_data.expect(0x2022L.U)
       }
     }
+
+    it should "solve Tower of Hanoi puzzle correctly" in {
+      runProgram("tower_of_hanoi.asmbin", cfg) { c =>
+        // Tower of Hanoi with 3 disks requires 7 moves
+        // Let the program run for sufficient clock cycles
+        c.clock.setTimeout(0)
+        for (i <- 1 to 100) {
+          c.clock.step(1000)
+          c.io.mem_debug_read_address.poke((i * 4).U)
+        }
+        // The program should complete without hanging
+        // We verify it executed by checking register states
+        c.io.regs_debug_read_address.poke(8.U) // x8 should be 8 after completion
+        c.clock.step()
+        c.io.regs_debug_read_data.expect(8.U)
+      }
+    }
+
+    it should "minimize XOR correctly using branchless CLZ" in {
+      runProgram("minimize_xor.asmbin", cfg) { c =>
+        c.clock.setTimeout(0)
+        for (i <- 1 to 50) {
+          c.clock.step(1000)
+          c.io.mem_debug_read_address.poke((i * 4).U)
+        }
+        // Test case: num1=3, num2=5
+        // num1 = 0b011, num2 = 0b101 (popcount=2)
+        // Expected result: 3 (minimize XOR by selecting 2 bits from num1)
+        c.io.mem_debug_read_address.poke(0.U)
+        c.clock.step()
+        val result = c.io.mem_debug_read_data.peek().litValue
+        // The result should be stored at address 0
+        assert(result == 3, f"MinimizeXOR(3,5) should be 3, got $result")
+      }
+    }
   }
 }

@@ -1,0 +1,124 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Minimize XOR Test Waveform
+[*]
+[dumpfile] "/home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/trace.vcd"
+[dumpfile_mtime] "Mon Dec 09 18:25:00 2024"
+[dumpfile_size] 128000000
+[savefile] "/home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-13.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.Top.
+[treeopen] TOP.Top.cpu.
+[treeopen] TOP.Top.cpu.cpu.
+[sst_width] 300
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 300
+@28
+TOP.Top.cpu.cpu.clock
+@200
+-
+-==== Pipeline Stage PCs ====
+@22
+TOP.Top.cpu.io_instruction_address[31:0]
+@28
+TOP.Top.cpu.io_instruction_valid
+@22
+TOP.Top.cpu.cpu.if2id.io_output_instruction_address[31:0]
+TOP.Top.cpu.cpu.if2id.io_output_instruction[31:0]
+TOP.Top.cpu.cpu.id2ex.io_output_instruction_address[31:0]
+TOP.Top.cpu.cpu.ex2mem.io_output_instruction_address[31:0]
+TOP.Top.cpu.cpu.mem2wb.io_output_instruction_address[31:0]
+@200
+-
+-==== Hazard Detection ====
+@28
+TOP.Top.cpu.cpu.ctrl.io_pc_stall
+TOP.Top.cpu.cpu.ctrl.io_if_flush
+TOP.Top.cpu.cpu.ctrl.io_id_flush
+@22
+TOP.Top.cpu.cpu.forwarding.io_reg1_forward_ex[1:0]
+TOP.Top.cpu.cpu.forwarding.io_reg2_forward_ex[1:0]
+@200
+-
+-==== Register File ====
+@22
+TOP.Top.cpu.cpu.regs.io_read_address1[4:0]
+TOP.Top.cpu.cpu.regs.io_read_address2[4:0]
+TOP.Top.cpu.cpu.regs.io_read_data1[31:0]
+TOP.Top.cpu.cpu.regs.io_read_data2[31:0]
+TOP.Top.cpu.cpu.regs.io_write_address[4:0]
+TOP.Top.cpu.cpu.regs.io_write_data[31:0]
+@28
+TOP.Top.cpu.cpu.regs.io_write_enable
+@200
+-
+-==== Minimize XOR Key Registers ====
+@22
+TOP.Top.cpu.cpu.regs.registers_9[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x10_a0_result
+TOP.Top.cpu.cpu.regs.registers_10[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x11_a1_num1
+TOP.Top.cpu.cpu.regs.registers_11[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x12_a2_num2
+@200
+-
+-==== Temporaries (t0-t6) ====
+@22
+TOP.Top.cpu.cpu.regs.registers_4[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x5_t0
+TOP.Top.cpu.cpu.regs.registers_5[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x6_t1
+TOP.Top.cpu.cpu.regs.registers_6[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x7_t2
+TOP.Top.cpu.cpu.regs.registers_27[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x28_t3
+TOP.Top.cpu.cpu.regs.registers_28[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x29_t4
+TOP.Top.cpu.cpu.regs.registers_29[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x30_t5
+TOP.Top.cpu.cpu.regs.registers_30[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x31_t6
+@200
+-
+-==== Saved Registers (s0-s11) ====
+@22
+TOP.Top.cpu.cpu.regs.registers_7[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x8_s0
+TOP.Top.cpu.cpu.regs.registers_8[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x9_s1
+TOP.Top.cpu.cpu.regs.registers_17[31:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.x18_s2
+@200
+-
+-==== Memory Signals ====
+@22
+TOP.Top.cpu.cpu.mem.io_bundle_address[31:0]
+TOP.Top.cpu.cpu.mem.io_bundle_read_data[31:0]
+TOP.Top.cpu.cpu.mem.io_bundle_write_data[31:0]
+@28
+TOP.Top.cpu.cpu.mem.io_memory_read_enable
+TOP.Top.cpu.cpu.mem.io_memory_write_enable
+@200
+-
+-==== ALU Signals (XOR Operations) ====
+@22
+TOP.Top.cpu.cpu.ex.alu.io_op1[31:0]
+TOP.Top.cpu.cpu.ex.alu.io_op2[31:0]
+TOP.Top.cpu.cpu.ex.alu.io_result[31:0]
+TOP.Top.cpu.cpu.ex.alu.io_func[3:0]
+^1 /home/jieling/Desktop/CA2025_Assignment3/ca2025-mycpu/3-pipeline/minimize_xor.gtkw.alu_func
+@200
+-
+-==== Branch/Jump Control ====
+@28
+TOP.Top.cpu.cpu.ctrl.io_jump_flag
+TOP.Top.cpu.cpu.ex.io_if_jump_flag
+@22
+TOP.Top.cpu.cpu.ex.io_if_jump_address[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
